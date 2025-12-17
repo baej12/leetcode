@@ -112,79 +112,114 @@ vector<pair<vector<string>, string>> parseExamplesFromDescription(const string& 
     bool inDescription = false;
     vector<string> currentInput;
     string currentOutput;
-    bool expectingInput = false;
-    bool expectingOutput = false;
     
     while (getline(file, line)) {
+        // Check if we're in the description section
         if (line.find("Description:") != string::npos) {
             inDescription = true;
             continue;
         }
         
+        // Stop at Example Test Cases section
         if (inDescription && line.find("Example Test Cases:") != string::npos) {
+            // Save last example if exists
+            if (!currentInput.empty() && !currentOutput.empty()) {
+                examples.push_back({currentInput, currentOutput});
+            }
             break;
         }
         
-        if (inDescription) {
-            // Look for "Input:" and "Output:" patterns
-            if (line.find("Input:") != string::npos) {
+        if (inDescription && line.find(" * ") != string::npos) {
+            string content = line.substr(line.find(" * ") + 3);
+            
+            // Look for "Example N:" to start a new example
+            if (content.find("Example") != string::npos && content.find(":") != string::npos) {
                 // Save previous example if exists
                 if (!currentInput.empty() && !currentOutput.empty()) {
                     examples.push_back({currentInput, currentOutput});
+                    currentInput.clear();
+                    currentOutput.clear();
                 }
-                currentInput.clear();
-                currentOutput.clear();
-                expectingInput = true;
-                expectingOutput = false;
+                continue;
+            }
+            
+            // Parse "Input: var = value" lines
+            if (content.find("Input:") != string::npos) {
+                size_t pos = content.find("Input:");
+                string inputLine = content.substr(pos + 6);
                 
-                // Extract input from same line
-                size_t inputPos = line.find("Input:");
-                if (inputPos != string::npos) {
-                    size_t start = line.find_first_not_of(" \t", inputPos + 6);
-                    if (start != string::npos) {
-                        string inputLine = line.substr(start);
-                        // Parse comma-separated inputs
-                        size_t pos = 0;
-                        while ((pos = inputLine.find(" = ")) != string::npos) {
-                            size_t valueStart = pos + 3;
-                            size_t valueEnd = inputLine.find(",", valueStart);
-                            if (valueEnd == string::npos) {
-                                valueEnd = inputLine.length();
-                            }
-                            string value = inputLine.substr(valueStart, valueEnd - valueStart);
-                            // Trim
-                            size_t trimStart = value.find_first_not_of(" \t");
-                            size_t trimEnd = value.find_last_not_of(" \t,");
-                            if (trimStart != string::npos && trimEnd != string::npos) {
-                                value = value.substr(trimStart, trimEnd - trimStart + 1);
-                                currentInput.push_back(value);
-                            }
-                            inputLine = inputLine.substr(valueEnd);
+                // Extract values (handle multiple inputs)
+                size_t eqPos;
+                while ((eqPos = inputLine.find(" = ")) != string::npos) {
+                    size_t valueStart = eqPos + 3;
+                    
+                    // Find the end of this value
+                    // If value starts with '[', find matching ']'
+                    // Otherwise, find next comma or end of string
+                    size_t endPos;
+                    string value;
+                    
+                    // Trim leading space
+                    while (valueStart < inputLine.length() && isspace(inputLine[valueStart])) {
+                        valueStart++;
+                    }
+                    
+                    if (valueStart < inputLine.length() && inputLine[valueStart] == '[') {
+                        // Array value - find closing bracket
+                        size_t bracketEnd = inputLine.find(']', valueStart);
+                        if (bracketEnd != string::npos) {
+                            endPos = bracketEnd + 1;
+                            value = inputLine.substr(valueStart, endPos - valueStart);
+                        } else {
+                            value = inputLine.substr(valueStart);
+                            endPos = inputLine.length();
+                        }
+                    } else {
+                        // Regular value - find next comma or end
+                        size_t commaPos = inputLine.find(",", valueStart);
+                        if (commaPos != string::npos) {
+                            endPos = commaPos;
+                            value = inputLine.substr(valueStart, endPos - valueStart);
+                        } else {
+                            value = inputLine.substr(valueStart);
+                            endPos = inputLine.length();
                         }
                     }
-                }
-            } else if (line.find("Output:") != string::npos) {
-                expectingInput = false;
-                expectingOutput = true;
-                
-                // Extract output from same line
-                size_t outputPos = line.find("Output:");
-                if (outputPos != string::npos) {
-                    size_t start = line.find_first_not_of(" \t", outputPos + 7);
-                    if (start != string::npos) {
-                        currentOutput = line.substr(start);
-                        // Trim
-                        size_t trimEnd = currentOutput.find_last_not_of(" \t\r\n");
-                        if (trimEnd != string::npos) {
-                            currentOutput = currentOutput.substr(0, trimEnd + 1);
+                    
+                    // Trim whitespace from value
+                    size_t start = value.find_first_not_of(" \t");
+                    size_t end = value.find_last_not_of(" \t");
+                    if (start != string::npos && end != string::npos) {
+                        value = value.substr(start, end - start + 1);
+                        if (!value.empty()) {
+                            currentInput.push_back(value);
                         }
                     }
+                    
+                    // Move past this value
+                    if (endPos < inputLine.length() && inputLine[endPos] == ',') {
+                        inputLine = inputLine.substr(endPos + 1);
+                    } else {
+                        break;
+                    }
+                }
+            }
+            
+            // Parse "Output: value" lines
+            if (content.find("Output:") != string::npos) {
+                size_t pos = content.find("Output:");
+                currentOutput = content.substr(pos + 7);
+                // Trim whitespace
+                size_t start = currentOutput.find_first_not_of(" \t");
+                size_t end = currentOutput.find_last_not_of(" \t\r\n");
+                if (start != string::npos && end != string::npos) {
+                    currentOutput = currentOutput.substr(start, end - start + 1);
                 }
             }
         }
     }
     
-    // Add last example
+    // Add last example if not already added
     if (!currentInput.empty() && !currentOutput.empty()) {
         examples.push_back({currentInput, currentOutput});
     }
@@ -259,35 +294,63 @@ int main(int argc, char* argv[]) {
     
     cout << endl;
     
-    // Parse test cases
-    vector<string> testCases = parseExampleTestCases(sourceFile);
+    // Parse examples with expected outputs from description
+    auto examples = parseExamplesFromDescription(sourceFile);
     
-    if (testCases.empty()) {
-        cout << YELLOW << "⚠ No example test cases found in file" << RESET << endl;
-        cout << "You can add test cases in the 'Example Test Cases:' section" << endl;
-        cout << endl;
-        cout << "Note: Make sure to implement your solution and update main()" << endl;
-        cout << "to read inputs and produce outputs as expected by LeetCode." << endl;
-    } else {
-        cout << BLUE << "Found " << testCases.size() << " test input line(s)" << RESET << endl;
+    if (examples.empty()) {
+        cout << YELLOW << "⚠ No examples with expected outputs found in description" << RESET << endl;
+        cout << "Running with test cases only..." << endl;
         cout << endl;
         
-        // Run the program with all test inputs
-        cout << "Running tests..." << endl;
-        cout << "========================================" << endl;
-        
-        string output = runTestWithInput(executableName, testCases);
-        
-        if (output.empty()) {
-            cout << RED << "✗ Program produced no output or crashed" << RESET << endl;
-        } else {
+        // Fallback to running test cases without validation
+        vector<string> testCases = parseExampleTestCases(sourceFile);
+        if (!testCases.empty()) {
+            cout << BLUE << "Found " << testCases.size() << " test input line(s)" << RESET << endl;
+            string output = runTestWithInput(executableName, testCases);
             cout << "Output:" << endl;
             cout << output << endl;
-            cout << "========================================" << endl;
-            cout << GREEN << "✓ Program executed successfully" << RESET << endl;
+        } else {
+            cout << "No test cases found." << endl;
+        }
+    } else {
+        cout << BLUE << "Found " << examples.size() << " example(s) with expected outputs" << RESET << endl;
+        cout << endl;
+        
+        int passed = 0;
+        int failed = 0;
+        
+        for (size_t i = 0; i < examples.size(); i++) {
+            cout << "Example " << (i + 1) << ":" << endl;
+            cout << "  Input: ";
+            for (size_t j = 0; j < examples[i].first.size(); j++) {
+                if (j > 0) cout << ", ";
+                cout << examples[i].first[j];
+            }
             cout << endl;
-            cout << "Please verify the output matches the expected results from" << endl;
-            cout << "the problem description." << endl;
+            cout << "  Expected: " << examples[i].second << endl;
+            
+            string output = runTestWithInput(executableName, examples[i].first);
+            output = trim(output);
+            
+            cout << "  Got:      " << output << endl;
+            
+            if (output == examples[i].second) {
+                cout << GREEN << "  ✓ PASSED" << RESET << endl;
+                passed++;
+            } else {
+                cout << RED << "  ✗ FAILED" << RESET << endl;
+                failed++;
+            }
+            cout << endl;
+        }
+        
+        // Summary
+        cout << "========================================" << endl;
+        cout << "Summary: ";
+        if (failed == 0) {
+            cout << GREEN << "All " << passed << " test(s) passed! ✓" << RESET << endl;
+        } else {
+            cout << passed << " passed, " << RED << failed << " failed" << RESET << endl;
         }
     }
     
