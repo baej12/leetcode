@@ -41,6 +41,12 @@ string extractJsonField(const string& json, const string& field) {
 string unescapeHtml(const string& str) {
     string result = str;
     size_t pos = 0;
+    
+    // Replace entities (do &amp; last since other entities contain &)
+    while ((pos = result.find("&nbsp;", pos)) != string::npos) {
+        result.replace(pos, 6, " ");
+    }
+    pos = 0;
     while ((pos = result.find("&#39;", pos)) != string::npos) {
         result.replace(pos, 5, "'");
     }
@@ -49,10 +55,79 @@ string unescapeHtml(const string& str) {
         result.replace(pos, 6, "\"");
     }
     pos = 0;
+    while ((pos = result.find("&lt;", pos)) != string::npos) {
+        result.replace(pos, 4, "<");
+    }
+    pos = 0;
+    while ((pos = result.find("&gt;", pos)) != string::npos) {
+        result.replace(pos, 4, ">");
+    }
+    pos = 0;
+    while ((pos = result.find("&le;", pos)) != string::npos) {
+        result.replace(pos, 4, "≤");
+    }
+    pos = 0;
+    while ((pos = result.find("&ge;", pos)) != string::npos) {
+        result.replace(pos, 4, "≥");
+    }
+    pos = 0;
+    while ((pos = result.find("&hellip;", pos)) != string::npos) {
+        result.replace(pos, 8, "...");
+    }
+    pos = 0;
+    while ((pos = result.find("&minus;", pos)) != string::npos) {
+        result.replace(pos, 7, "-");
+    }
+    pos = 0;
+    while ((pos = result.find("&times;", pos)) != string::npos) {
+        result.replace(pos, 7, "×");
+    }
+    pos = 0;
     while ((pos = result.find("&amp;", pos)) != string::npos) {
         result.replace(pos, 5, "&");
     }
     return result;
+}
+
+// Function to strip HTML tags and format as plain text
+string stripHtmlTags(const string& html) {
+    string result = "";
+    bool inTag = false;
+    bool inCode = false;
+    
+    for (size_t i = 0; i < html.length(); i++) {
+        if (html[i] == '<') {
+            // Check if it's a code tag
+            if (i + 5 < html.length() && html.substr(i, 6) == "<code>") {
+                inCode = true;
+                i += 5;
+                continue;
+            } else if (i + 6 < html.length() && html.substr(i, 7) == "</code>") {
+                inCode = false;
+                i += 6;
+                continue;
+            } else if (i + 3 < html.length() && html.substr(i, 4) == "<br>") {
+                result += '\n';
+                i += 3;
+                continue;
+            } else if (i + 2 < html.length() && html.substr(i, 3) == "<p>") {
+                if (!result.empty() && result.back() != '\n') result += "\n\n";
+                i += 2;
+                continue;
+            } else if (i + 3 < html.length() && html.substr(i, 4) == "</p>") {
+                if (!result.empty() && result.back() != '\n') result += '\n';
+                i += 3;
+                continue;
+            }
+            inTag = true;
+        } else if (html[i] == '>') {
+            inTag = false;
+        } else if (!inTag) {
+            result += html[i];
+        }
+    }
+    
+    return unescapeHtml(result);
 }
 
 // Function to check if string is a number
@@ -104,8 +179,48 @@ string fetchProblemSlug(const string& problemId) {
     return response.substr(slugPos, endPos - slugPos);
 }
 
+// Function to extract content field (handles content with newlines)
+string extractContent(const string& json, const string& field) {
+    string pattern = "\"" + field + "\":\"";
+    size_t pos = json.find(pattern);
+    if (pos == string::npos) return "";
+    
+    pos += pattern.length();
+    string result = "";
+    
+    // Parse until we find the closing quote that's not escaped
+    for (size_t i = pos; i < json.length(); i++) {
+        if (json[i] == '\\' && i + 1 < json.length()) {
+            // Handle escape sequences
+            char next = json[i + 1];
+            if (next == 'n') {
+                result += '\n';
+                i++;
+            } else if (next == 't') {
+                result += '\t';
+                i++;
+            } else if (next == '"') {
+                result += '"';
+                i++;
+            } else if (next == '\\') {
+                result += '\\';
+                i++;
+            } else {
+                result += json[i];
+            }
+        } else if (json[i] == '"') {
+            break;
+        } else {
+            result += json[i];
+        }
+    }
+    
+    return result;
+}
+
 // Function to fetch problem info from LeetCode
-bool fetchProblemInfo(const string& problemIdentifier, string& title, string& difficulty, string& titleSlug, string& questionId) {
+bool fetchProblemInfo(const string& problemIdentifier, string& title, string& difficulty, 
+                      string& titleSlug, string& questionId, string& content, string& exampleTestcases) {
     // If input is a number, fetch the slug first
     string slug = problemIdentifier;
     
@@ -120,10 +235,11 @@ bool fetchProblemInfo(const string& problemIdentifier, string& title, string& di
     }
     
     // Use curl to fetch problem data from LeetCode GraphQL API
+    // Include content and exampleTestcases in the query
     string curlCmd = "curl -s 'https://leetcode.com/graphql' "
                      "-H 'Content-Type: application/json' "
-                     "--data-raw '{\"query\":\"query questionTitle($titleSlug: String!) "
-                     "{ question(titleSlug: $titleSlug) { questionId title titleSlug difficulty }}\","
+                     "--data-raw '{\"query\":\"query questionContent($titleSlug: String!) "
+                     "{ question(titleSlug: $titleSlug) { questionId title titleSlug difficulty content exampleTestcases }}\","
                      "\"variables\":{\"titleSlug\":\"" + slug + "\"}}' 2>/dev/null";
     
     string response = executeCommand(curlCmd);
@@ -137,6 +253,8 @@ bool fetchProblemInfo(const string& problemIdentifier, string& title, string& di
     difficulty = extractJsonField(response, "difficulty");
     titleSlug = extractJsonField(response, "titleSlug");
     questionId = extractJsonField(response, "questionId");
+    content = extractContent(response, "content");
+    exampleTestcases = extractContent(response, "exampleTestcases");
     
     if (!title.empty()) {
         title = unescapeHtml(title);
@@ -148,7 +266,8 @@ bool fetchProblemInfo(const string& problemIdentifier, string& title, string& di
 
 // Function to create problem template file
 void createProblemFile(const string& problemNum, const string& title, 
-                       const string& difficulty, const string& titleSlug) {
+                       const string& difficulty, const string& titleSlug,
+                       const string& content, const string& exampleTestcases) {
     string filename = problemNum + ".cpp";
     
     // Check if file already exists, if so append -1, -2, etc.
@@ -180,6 +299,36 @@ void createProblemFile(const string& problemNum, const string& title,
     file << " * Title: " << title << endl;
     file << " * Difficulty: " << difficulty << endl;
     file << " * https://leetcode.com/problems/" << titleSlug << "/" << endl;
+    file << " *" << endl;
+    
+    // Add description if available
+    if (!content.empty()) {
+        string description = stripHtmlTags(content);
+        file << " * Description:" << endl;
+        file << " * " << endl;
+        
+        // Write description with proper comment formatting
+        istringstream descStream(description);
+        string line;
+        while (getline(descStream, line)) {
+            // Skip empty lines at the start
+            if (line.empty()) continue;
+            file << " * " << line << endl;
+        }
+        file << " *" << endl;
+    }
+    
+    // Add example test cases if available
+    if (!exampleTestcases.empty()) {
+        file << " * Example Test Cases:" << endl;
+        istringstream testStream(exampleTestcases);
+        string line;
+        while (getline(testStream, line)) {
+            file << " * " << line << endl;
+        }
+        file << " *" << endl;
+    }
+    
     file << " */" << endl;
     file << endl;
     file << "#include <iostream>" << endl;
@@ -228,13 +377,13 @@ int main(int argc, char* argv[]) {
     
     cout << "Fetching LeetCode problem info for: " << problemIdentifier << endl;
     
-    string title, difficulty, titleSlug, questionId;
+    string title, difficulty, titleSlug, questionId, content, exampleTestcases;
     
-    if (fetchProblemInfo(problemIdentifier, title, difficulty, titleSlug, questionId)) {
+    if (fetchProblemInfo(problemIdentifier, title, difficulty, titleSlug, questionId, content, exampleTestcases)) {
         // Use questionId for filename if available, otherwise use identifier
         string problemNum = questionId.empty() ? problemIdentifier : questionId;
         
-        createProblemFile(problemNum, title, difficulty, titleSlug);
+        createProblemFile(problemNum, title, difficulty, titleSlug, content, exampleTestcases);
     } else {
         cerr << "\n✗ Failed to fetch problem information." << endl;
         cerr << "  Make sure you have curl installed and internet connection." << endl;
