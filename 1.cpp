@@ -42,6 +42,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <sstream>
 #include <unordered_map>
 #include <unordered_set>
 #include <algorithm>
@@ -52,14 +53,48 @@ using namespace std;
 
 class Solution {
 public:
-    // TODO: Implement solution
-    
+    vector<int> twoSum(vector<int>& nums, int target) {
+        unordered_map<int, int> seen;
+        for (int i = 0; i < nums.size(); i++) {
+            int complement = target - nums[i];
+            if (seen.find(complement) != seen.end()) {
+                return {seen[complement], i};
+            }
+            seen[nums[i]] = i;
+        }
+        return {};
+    }
 };
 
 int main() {
     Solution sol;
     
-    // Test cases
+    // Read input array like [2,7,11,15]
+    string line;
+    getline(cin, line);
+    
+    // Parse array
+    vector<int> nums;
+    size_t start = line.find('[');
+    size_t end = line.find(']');
+    if (start != string::npos && end != string::npos) {
+        string content = line.substr(start + 1, end - start - 1);
+        stringstream ss(content);
+        string num;
+        while (getline(ss, num, ',')) {
+            nums.push_back(stoi(num));
+        }
+    }
+    
+    // Read target
+    int target;
+    cin >> target;
+    
+    // Solve
+    vector<int> result = sol.twoSum(nums, target);
+    
+    // Output
+    cout << "[" << result[0] << "," << result[1] << "]" << endl;
     
     return 0;
 }

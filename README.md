@@ -1,16 +1,18 @@
 This README exists to log some of the answers I have submitted to leetcode.
 
-## Setup Tool
+## Tools
 
-This repository includes a `get` utility to automatically fetch LeetCode problems and create template files.
+This repository includes two utilities:
+- **`get`** - Fetches LeetCode problems and creates template files
+- **`test`** - Compiles and tests your solutions
 
-### Building the Tool
+### Building the Tools
 
 ```bash
-make
+make        # Builds both get and test
+make get    # Builds only the get utility
+make test   # Builds only the test utility
 ```
-
-This will compile `get.cpp` into an executable named `get`.
 
 ### Usage
 
@@ -43,15 +45,50 @@ Find these in the LeetCode URL: https://leetcode.com/problems/**[slug]**/
 
 ### What It Does
 
-1. Fetches problem information from LeetCode (title, difficulty, URL)
+The `get` utility:
+1. Fetches problem information from LeetCode (title, difficulty, URL, description, examples)
 2. Creates a new `.cpp` file with:
-   - Problem metadata in comments
+   - Problem metadata and full description in comments
+   - Example test cases from the problem
    - Common C++ includes
    - Solution class template
    - Main function with test case section
 
+### File Naming
+
+If a file already exists (e.g., `42.cpp`), the tool automatically creates an incremented version (`42-1.cpp`, `42-2.cpp`, etc.) to avoid overwriting your work.
+
+## Testing Tool
+
+### Usage
+
+```bash
+./test <solution-file.cpp>
+```
+
+**Example:**
+```bash
+./test 1.cpp
+./test 42-1.cpp
+```
+
+### What It Does
+
+The `test` utility:
+1. Compiles your solution with optimizations (`-O2`)
+2. Extracts test inputs from the "Example Test Cases" section
+3. Runs your program with those inputs
+4. Displays the output for verification
+
+### Notes
+
+- Your solution's `main()` function should read from standard input and write to standard output
+- The tool shows compilation warnings/errors if any
+- The executable is automatically cleaned up after testing
+- You should verify the output matches the expected results from the problem description
+
 ### Requirements
 
 - C++17 compiler (g++ or clang++)
-- `curl` (for API requests)
-- Internet connection 
+- `curl` (for API requests - get tool only)
+- Internet connection (for get tool only) 
