@@ -218,9 +218,52 @@ string extractContent(const string& json, const string& field) {
     return result;
 }
 
+// Function to extract C++ code snippet from codeSnippets
+string extractCppCodeSnippet(const string& json) {
+    // Find the C++ code snippet in the codeSnippets array
+    size_t pos = 0;
+    while ((pos = json.find("\"langSlug\":\"cpp\"", pos)) != string::npos) {
+        // Found C++ snippet, now extract the code
+        size_t codeStart = json.find("\"code\":\"", pos);
+        if (codeStart != string::npos) {
+            codeStart += 8; // Length of "code":"
+            string code = "";
+            
+            // Parse until closing quote (handle escapes)
+            for (size_t i = codeStart; i < json.length(); i++) {
+                if (json[i] == '\\' && i + 1 < json.length()) {
+                    char next = json[i + 1];
+                    if (next == 'n') {
+                        code += '\n';
+                        i++;
+                    } else if (next == 't') {
+                        code += '\t';
+                        i++;
+                    } else if (next == '"') {
+                        code += '"';
+                        i++;
+                    } else if (next == '\\') {
+                        code += '\\';
+                        i++;
+                    } else {
+                        code += json[i];
+                    }
+                } else if (json[i] == '"') {
+                    return code;
+                } else {
+                    code += json[i];
+                }
+            }
+        }
+        pos++;
+    }
+    return "";
+}
+
 // Function to fetch problem info from LeetCode
 bool fetchProblemInfo(const string& problemIdentifier, string& title, string& difficulty, 
-                      string& titleSlug, string& questionId, string& content, string& exampleTestcases) {
+                      string& titleSlug, string& questionId, string& content, string& exampleTestcases,
+                      string& cppCode) {
     // If input is a number, fetch the slug first
     string slug = problemIdentifier;
     
@@ -235,11 +278,12 @@ bool fetchProblemInfo(const string& problemIdentifier, string& title, string& di
     }
     
     // Use curl to fetch problem data from LeetCode GraphQL API
-    // Include content and exampleTestcases in the query
+    // Include content, exampleTestcases, and codeSnippets in the query
     string curlCmd = "curl -s 'https://leetcode.com/graphql' "
                      "-H 'Content-Type: application/json' "
                      "--data-raw '{\"query\":\"query questionContent($titleSlug: String!) "
-                     "{ question(titleSlug: $titleSlug) { questionId title titleSlug difficulty content exampleTestcases }}\","
+                     "{ question(titleSlug: $titleSlug) { questionId title titleSlug difficulty content exampleTestcases "
+                     "codeSnippets { lang langSlug code } }}\","
                      "\"variables\":{\"titleSlug\":\"" + slug + "\"}}' 2>/dev/null";
     
     string response = executeCommand(curlCmd);
@@ -255,6 +299,7 @@ bool fetchProblemInfo(const string& problemIdentifier, string& title, string& di
     questionId = extractJsonField(response, "questionId");
     content = extractContent(response, "content");
     exampleTestcases = extractContent(response, "exampleTestcases");
+    cppCode = extractCppCodeSnippet(response);
     
     if (!title.empty()) {
         title = unescapeHtml(title);
@@ -267,7 +312,8 @@ bool fetchProblemInfo(const string& problemIdentifier, string& title, string& di
 // Function to create problem template file
 void createProblemFile(const string& problemNum, const string& title, 
                        const string& difficulty, const string& titleSlug,
-                       const string& content, const string& exampleTestcases) {
+                       const string& content, const string& exampleTestcases,
+                       const string& cppCode) {
     string filename = problemNum + ".cpp";
     
     // Check if file already exists, if so append -1, -2, etc.
@@ -334,6 +380,7 @@ void createProblemFile(const string& problemNum, const string& title,
     file << "#include <iostream>" << endl;
     file << "#include <vector>" << endl;
     file << "#include <string>" << endl;
+    file << "#include <sstream>" << endl;
     file << "#include <unordered_map>" << endl;
     file << "#include <unordered_set>" << endl;
     file << "#include <algorithm>" << endl;
@@ -342,16 +389,41 @@ void createProblemFile(const string& problemNum, const string& title,
     file << endl;
     file << "using namespace std;" << endl;
     file << endl;
-    file << "class Solution {" << endl;
-    file << "public:" << endl;
-    file << "    // TODO: Implement solution" << endl;
-    file << "    " << endl;
-    file << "};" << endl;
+    
+    // Write the Solution class with the actual function signature if available
+    if (!cppCode.empty()) {
+        file << cppCode << endl;
+    } else {
+        file << "class Solution {" << endl;
+        file << "public:" << endl;
+        file << "    // TODO: Implement solution" << endl;
+        file << "    " << endl;
+        file << "};" << endl;
+    }
     file << endl;
     file << "int main() {" << endl;
     file << "    Solution sol;" << endl;
     file << "    " << endl;
-    file << "    // Test cases" << endl;
+    file << "    // Read input" << endl;
+    file << "    string line;" << endl;
+    file << "    getline(cin, line);" << endl;
+    file << "    " << endl;
+    file << "    // Parse input (modify based on problem requirements)" << endl;
+    file << "    vector<int> nums;" << endl;
+    file << "    size_t start = line.find('[');" << endl;
+    file << "    size_t end = line.find(']');" << endl;
+    file << "    if (start != string::npos && end != string::npos) {" << endl;
+    file << "        string content = line.substr(start + 1, end - start - 1);" << endl;
+    file << "        stringstream ss(content);" << endl;
+    file << "        string num;" << endl;
+    file << "        while (getline(ss, num, ',')) {" << endl;
+    file << "            nums.push_back(stoi(num));" << endl;
+    file << "        }" << endl;
+    file << "    }" << endl;
+    file << "    " << endl;
+    file << "    // Call solution and output result" << endl;
+    file << "    // TODO: Modify based on function signature" << endl;
+    file << "    // cout << sol.functionName(args) << endl;" << endl;
     file << "    " << endl;
     file << "    return 0;" << endl;
     file << "}" << endl;
@@ -377,13 +449,13 @@ int main(int argc, char* argv[]) {
     
     cout << "Fetching LeetCode problem info for: " << problemIdentifier << endl;
     
-    string title, difficulty, titleSlug, questionId, content, exampleTestcases;
+    string title, difficulty, titleSlug, questionId, content, exampleTestcases, cppCode;
     
-    if (fetchProblemInfo(problemIdentifier, title, difficulty, titleSlug, questionId, content, exampleTestcases)) {
+    if (fetchProblemInfo(problemIdentifier, title, difficulty, titleSlug, questionId, content, exampleTestcases, cppCode)) {
         // Use questionId for filename if available, otherwise use identifier
         string problemNum = questionId.empty() ? problemIdentifier : questionId;
         
-        createProblemFile(problemNum, title, difficulty, titleSlug, content, exampleTestcases);
+        createProblemFile(problemNum, title, difficulty, titleSlug, content, exampleTestcases, cppCode);
     } else {
         cerr << "\n✗ Failed to fetch problem information." << endl;
         cerr << "  Make sure you have curl installed and internet connection." << endl;
