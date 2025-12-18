@@ -366,6 +366,125 @@ bool fetchProblemInfo(const string& problemIdentifier, string& title, string& di
     return false;
 }
 
+// Helper function to generate main() for ListNode problems
+string generateListNodeMain() {
+    return R"(int main() {
+    Solution sol;
+    
+    // Read input - linked list format: [1,2,3,4,5]
+    string line;
+    getline(cin, line);
+    
+    // Parse array
+    vector<int> values;
+    size_t start = line.find('[');
+    size_t end = line.find(']');
+    if (start != string::npos && end != string::npos) {
+        string content = line.substr(start + 1, end - start - 1);
+        if (!content.empty()) {
+            stringstream ss(content);
+            string num;
+            while (getline(ss, num, ',')) {
+                values.push_back(stoi(num));
+            }
+        }
+    }
+    
+    // Build linked list
+    ListNode* head = nullptr;
+    if (!values.empty()) {
+        head = new ListNode(values[0]);
+        ListNode* current = head;
+        for (size_t i = 1; i < values.size(); i++) {
+            current->next = new ListNode(values[i]);
+            current = current->next;
+        }
+    }
+    
+    // Call solution
+    // TODO: Modify based on function signature
+    // ListNode* result = sol.functionName(head);
+    
+    // Output result
+    // TODO: Print result in correct format
+    
+    // Cleanup
+    while (head) {
+        ListNode* temp = head;
+        head = head->next;
+        delete temp;
+    }
+    
+    return 0;
+})";
+}
+
+// Helper function to generate main() for TreeNode problems
+string generateTreeNodeMain() {
+    return R"(int main() {
+    Solution sol;
+    
+    // Read input - tree format: [3,9,20,null,null,15,7]
+    string line;
+    getline(cin, line);
+    
+    // Parse array with null support
+    vector<string> values;
+    size_t start = line.find('[');
+    size_t end = line.find(']');
+    if (start != string::npos && end != string::npos) {
+        string content = line.substr(start + 1, end - start - 1);
+        if (!content.empty()) {
+            stringstream ss(content);
+            string val;
+            while (getline(ss, val, ',')) {
+                // Trim whitespace
+                size_t s = val.find_first_not_of(" \t");
+                size_t e = val.find_last_not_of(" \t");
+                if (s != string::npos && e != string::npos) {
+                    values.push_back(val.substr(s, e - s + 1));
+                }
+            }
+        }
+    }
+    
+    // Build tree (level-order)
+    TreeNode* root = nullptr;
+    if (!values.empty() && values[0] != "null") {
+        root = new TreeNode(stoi(values[0]));
+        queue<TreeNode*> q;
+        q.push(root);
+        
+        size_t i = 1;
+        while (!q.empty() && i < values.size()) {
+            TreeNode* node = q.front();
+            q.pop();
+            
+            // Left child
+            if (i < values.size() && values[i] != "null") {
+                node->left = new TreeNode(stoi(values[i]));
+                q.push(node->left);
+            }
+            i++;
+            
+            // Right child
+            if (i < values.size() && values[i] != "null") {
+                node->right = new TreeNode(stoi(values[i]));
+                q.push(node->right);
+            }
+            i++;
+        }
+    }
+    
+    // Call solution
+    // TODO: Modify based on function signature
+    // int result = sol.functionName(root);
+    // cout << result << endl;
+    
+    return 0;
+})";
+}
+
 // Function to create problem template file
 void createProblemFile(const string& problemNum, const string& title, 
                        const string& difficulty, const string& titleSlug,
@@ -465,32 +584,45 @@ void createProblemFile(const string& problemNum, const string& title,
         file << "};" << endl;
     }
     file << endl;
-    file << "int main() {" << endl;
-    file << "    Solution sol;" << endl;
-    file << "    " << endl;
-    file << "    // Read input" << endl;
-    file << "    string line;" << endl;
-    file << "    getline(cin, line);" << endl;
-    file << "    " << endl;
-    file << "    // Parse input (modify based on problem requirements)" << endl;
-    file << "    vector<int> nums;" << endl;
-    file << "    size_t start = line.find('[');" << endl;
-    file << "    size_t end = line.find(']');" << endl;
-    file << "    if (start != string::npos && end != string::npos) {" << endl;
-    file << "        string content = line.substr(start + 1, end - start - 1);" << endl;
-    file << "        stringstream ss(content);" << endl;
-    file << "        string num;" << endl;
-    file << "        while (getline(ss, num, ',')) {" << endl;
-    file << "            nums.push_back(stoi(num));" << endl;
-    file << "        }" << endl;
-    file << "    }" << endl;
-    file << "    " << endl;
-    file << "    // Call solution and output result" << endl;
-    file << "    // TODO: Modify based on function signature" << endl;
-    file << "    // cout << sol.functionName(args) << endl;" << endl;
-    file << "    " << endl;
-    file << "    return 0;" << endl;
-    file << "}" << endl;
+    
+    // Determine which data structures are present (reuse extracted dataStructures)
+    bool hasListNode = (dataStructures.find("struct ListNode") != string::npos);
+    bool hasTreeNode = (dataStructures.find("struct TreeNode") != string::npos);
+    
+    // Generate appropriate main() based on data structures
+    if (hasListNode) {
+        file << generateListNodeMain() << endl;
+    } else if (hasTreeNode) {
+        file << generateTreeNodeMain() << endl;
+    } else {
+        // Default main() for array/integer problems
+        file << "int main() {" << endl;
+        file << "    Solution sol;" << endl;
+        file << "    " << endl;
+        file << "    // Read input" << endl;
+        file << "    string line;" << endl;
+        file << "    getline(cin, line);" << endl;
+        file << "    " << endl;
+        file << "    // Parse input (modify based on problem requirements)" << endl;
+        file << "    vector<int> nums;" << endl;
+        file << "    size_t start = line.find('[');" << endl;
+        file << "    size_t end = line.find(']');" << endl;
+        file << "    if (start != string::npos && end != string::npos) {" << endl;
+        file << "        string content = line.substr(start + 1, end - start - 1);" << endl;
+        file << "        stringstream ss(content);" << endl;
+        file << "        string num;" << endl;
+        file << "        while (getline(ss, num, ',')) {" << endl;
+        file << "            nums.push_back(stoi(num));" << endl;
+        file << "        }" << endl;
+        file << "    }" << endl;
+        file << "    " << endl;
+        file << "    // Call solution and output result" << endl;
+        file << "    // TODO: Modify based on function signature" << endl;
+        file << "    // cout << sol.functionName(args) << endl;" << endl;
+        file << "    " << endl;
+        file << "    return 0;" << endl;
+        file << "}" << endl;
+    }
     
     file.close();
     cout << "\n✓ Successfully created " << filename << endl;

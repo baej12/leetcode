@@ -70,26 +70,62 @@ public:
 int main() {
     Solution sol;
     
-    // Read input
+    // Read input - tree format: [3,9,20,null,null,15,7]
     string line;
     getline(cin, line);
     
-    // Parse input (modify based on problem requirements)
-    vector<int> nums;
+    // Parse array with null support
+    vector<string> values;
     size_t start = line.find('[');
     size_t end = line.find(']');
     if (start != string::npos && end != string::npos) {
         string content = line.substr(start + 1, end - start - 1);
-        stringstream ss(content);
-        string num;
-        while (getline(ss, num, ',')) {
-            nums.push_back(stoi(num));
+        if (!content.empty()) {
+            stringstream ss(content);
+            string val;
+            while (getline(ss, val, ',')) {
+                // Trim whitespace
+                size_t s = val.find_first_not_of(" \t");
+                size_t e = val.find_last_not_of(" \t");
+                if (s != string::npos && e != string::npos) {
+                    values.push_back(val.substr(s, e - s + 1));
+                }
+            }
         }
     }
     
-    // Call solution and output result
+    // Build tree (level-order)
+    TreeNode* root = nullptr;
+    if (!values.empty() && values[0] != "null") {
+        root = new TreeNode(stoi(values[0]));
+        queue<TreeNode*> q;
+        q.push(root);
+        
+        size_t i = 1;
+        while (!q.empty() && i < values.size()) {
+            TreeNode* node = q.front();
+            q.pop();
+            
+            // Left child
+            if (i < values.size() && values[i] != "null") {
+                node->left = new TreeNode(stoi(values[i]));
+                q.push(node->left);
+            }
+            i++;
+            
+            // Right child
+            if (i < values.size() && values[i] != "null") {
+                node->right = new TreeNode(stoi(values[i]));
+                q.push(node->right);
+            }
+            i++;
+        }
+    }
+    
+    // Call solution
     // TODO: Modify based on function signature
-    // cout << sol.functionName(args) << endl;
+    // int result = sol.functionName(root);
+    // cout << result << endl;
     
     return 0;
 }

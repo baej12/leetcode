@@ -64,6 +64,131 @@ bool containsDataStructure(const string& filename, const string& structName) {
     return false;
 }
 
+// Helper function to generate ListNode builder code
+string generateListNodeBuilder() {
+    return R"(
+// Build linked list from array
+struct ListNode {
+    int val;
+    ListNode *next;
+    ListNode() : val(0), next(nullptr) {}
+    ListNode(int x) : val(x), next(nullptr) {}
+    ListNode(int x, ListNode *next) : val(x), next(next) {}
+};
+
+ListNode* buildList(const vector<int>& values) {
+    if (values.empty()) return nullptr;
+    ListNode* head = new ListNode(values[0]);
+    ListNode* current = head;
+    for (size_t i = 1; i < values.size(); i++) {
+        current->next = new ListNode(values[i]);
+        current = current->next;
+    }
+    return head;
+}
+
+void printList(ListNode* head) {
+    cout << "[";
+    bool first = true;
+    while (head != nullptr) {
+        if (!first) cout << ",";
+        cout << head->val;
+        first = false;
+        head = head->next;
+    }
+    cout << "]";
+}
+
+void deleteList(ListNode* head) {
+    while (head != nullptr) {
+        ListNode* temp = head;
+        head = head->next;
+        delete temp;
+    }
+}
+)";
+}
+
+// Helper function to generate TreeNode builder code
+string generateTreeNodeBuilder() {
+    return R"(
+// Build binary tree from level-order array with nulls
+struct TreeNode {
+    int val;
+    TreeNode *left;
+    TreeNode *right;
+    TreeNode() : val(0), left(nullptr), right(nullptr) {}
+    TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
+    TreeNode(int x, TreeNode *left, TreeNode *right) : val(x), left(left), right(right) {}
+};
+
+TreeNode* buildTree(const vector<string>& values) {
+    if (values.empty() || values[0] == "null") return nullptr;
+    
+    TreeNode* root = new TreeNode(stoi(values[0]));
+    queue<TreeNode*> q;
+    q.push(root);
+    
+    size_t i = 1;
+    while (!q.empty() && i < values.size()) {
+        TreeNode* node = q.front();
+        q.pop();
+        
+        // Left child
+        if (i < values.size() && values[i] != "null") {
+            node->left = new TreeNode(stoi(values[i]));
+            q.push(node->left);
+        }
+        i++;
+        
+        // Right child
+        if (i < values.size() && values[i] != "null") {
+            node->right = new TreeNode(stoi(values[i]));
+            q.push(node->right);
+        }
+        i++;
+    }
+    
+    return root;
+}
+
+void printTree(TreeNode* root) {
+    if (!root) {
+        cout << "[]";
+        return;
+    }
+    
+    cout << "[";
+    queue<TreeNode*> q;
+    q.push(root);
+    bool first = true;
+    
+    while (!q.empty()) {
+        TreeNode* node = q.front();
+        q.pop();
+        
+        if (!first) cout << ",";
+        if (node) {
+            cout << node->val;
+            q.push(node->left);
+            q.push(node->right);
+        } else {
+            cout << "null";
+        }
+        first = false;
+    }
+    cout << "]";
+}
+
+void deleteTree(TreeNode* root) {
+    if (!root) return;
+    deleteTree(root->left);
+    deleteTree(root->right);
+    delete root;
+}
+)";
+}
+
 // Function to parse example test cases from file
 vector<string> parseExampleTestCases(const string& filename) {
     vector<string> testCases;
@@ -244,6 +369,49 @@ vector<pair<vector<string>, string>> parseExamplesFromDescription(const string& 
     return examples;
 }
 
+// Function to create test wrapper for data structure problems
+string createDataStructureWrapper(const string& sourceFile, bool hasListNode, bool hasTreeNode) {
+    string wrapperFile = "test_wrapper_" + sourceFile;
+    ofstream out(wrapperFile);
+    
+    if (!out.is_open()) {
+        return "";
+    }
+    
+    // Write includes
+    out << "#include <iostream>" << endl;
+    out << "#include <vector>" << endl;
+    out << "#include <string>" << endl;
+    out << "#include <sstream>" << endl;
+    out << "#include <queue>" << endl;
+    out << "using namespace std;" << endl;
+    out << endl;
+    
+    // Add appropriate builder code
+    if (hasListNode) {
+        out << generateListNodeBuilder() << endl;
+    }
+    if (hasTreeNode) {
+        out << generateTreeNodeBuilder() << endl;
+    }
+    
+    // Include the original solution file
+    out << "// Include solution" << endl;
+    out << "#include \"" << sourceFile << "\"" << endl;
+    out << endl;
+    
+    // Note: The main() function would need to be customized per problem
+    // For now, we'll just include basic structure
+    out << "// Note: main() needs to be implemented based on problem requirements" << endl;
+    out << "int main() {" << endl;
+    out << "    // TODO: Parse input and call solution" << endl;
+    out << "    return 0;" << endl;
+    out << "}" << endl;
+    
+    out.close();
+    return wrapperFile;
+}
+
 // Function to compile the solution
 bool compileSolution(const string& sourceFile, const string& outputFile) {
     cout << BLUE << "Compiling " << sourceFile << "..." << RESET << endl;
@@ -310,24 +478,19 @@ int main(int argc, char* argv[]) {
     
     cout << endl;
     
-    // Check for custom data structures
+    // Check for custom data structures and inform user
     bool hasListNode = containsDataStructure(sourceFile, "ListNode");
     bool hasTreeNode = containsDataStructure(sourceFile, "TreeNode");
     
     if (hasListNode || hasTreeNode) {
-        cout << YELLOW << "⚠ This problem uses custom data structures (";
+        cout << BLUE << "ℹ This problem uses custom data structures (";
         if (hasListNode) cout << "ListNode";
         if (hasListNode && hasTreeNode) cout << ", ";
         if (hasTreeNode) cout << "TreeNode";
         cout << ")" << RESET << endl;
-        cout << "Automated testing for these types is not yet supported." << endl;
-        cout << "Please test manually or on LeetCode directly." << endl;
+        cout << "The generated file includes parsing and construction code." << endl;
+        cout << "Make sure to implement the solution and update output formatting." << endl;
         cout << endl;
-        
-        // Cleanup and exit
-        string cleanupCmd = "rm -f " + executableName;
-        system(cleanupCmd.c_str());
-        return 0;
     }
     
     // Parse examples with expected outputs from description
