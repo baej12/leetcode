@@ -51,19 +51,17 @@ public:
         }
 
         int currMin = prices[0];
-        int maxProfile = prices[0];
-        int profit = 0;
+        int maxProfit = 0;
 
         for (auto it = next(prices.begin());
             it != prices.end();
             ++it)
         {
-            auto& i = *it;
-            currMin = min(currMin, i);
-            profit = max(profit, currMin - i);
+            currMin = min(currMin, *it);
+            maxProfit = max(*it - currMin, maxProfit);
         }
 
-        return profit;
+        return maxProfit;
     }
 };
 
@@ -89,6 +87,7 @@ int main() {
     
     // Call solution and output result
     // TODO: Modify based on function signature
+    cout << sol.maxProfit(nums) << endl;
     // cout << sol.functionName(args) << endl;
     
     return 0;
