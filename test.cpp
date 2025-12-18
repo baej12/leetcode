@@ -26,6 +26,46 @@ bool fileExists(const string& filename) {
     return (stat(filename.c_str(), &buffer) == 0);
 }
 
+// Helper: determine directory range for problem ID
+string getDirectoryForProblemId(int problemId) {
+    int rangeStart = (problemId / 100) * 100;
+    int rangeEnd = rangeStart + 99;
+    return to_string(rangeStart) + "-" + to_string(rangeEnd);
+}
+
+// Helper: search for file in directory structure or root
+string findProblemFile(const string& filename) {
+    // First check if file exists in current directory
+    if (fileExists(filename)) {
+        return filename;
+    }
+    
+    // Extract problem ID from filename (e.g., "160.cpp" -> 160, "160-1.cpp" -> 160)
+    size_t dotPos = filename.find('.');
+    if (dotPos == string::npos) return "";
+    
+    string baseName = filename.substr(0, dotPos);
+    size_t dashPos = baseName.find('-');
+    string problemNumStr = (dashPos != string::npos) ? baseName.substr(0, dashPos) : baseName;
+    
+    // Try to parse problem ID
+    int problemId;
+    try {
+        problemId = stoi(problemNumStr);
+    } catch (...) {
+        return "";
+    }
+    
+    // Try directory for problem ID range
+    string directory = getDirectoryForProblemId(problemId);
+    string fullPath = directory + "/" + filename;
+    if (fileExists(fullPath)) {
+        return fullPath;
+    }
+    
+    return "";
+}
+
 // Function to execute a command and capture output
 string executeCommand(const string& command) {
     string result = "";
@@ -462,8 +502,9 @@ int main(int argc, char* argv[]) {
     
     string sourceFile = argv[1];
     
-    // Check if source file exists
-    if (!fileExists(sourceFile)) {
+    // Try to find the file in directory structure or root
+    string actualFile = findProblemFile(sourceFile);
+    if (actualFile.empty()) {
         cerr << RED << "✗ Error: File '" << sourceFile << "' not found" << RESET << endl;
         return 1;
     }
@@ -472,15 +513,15 @@ int main(int argc, char* argv[]) {
     string executableName = "test_" + sourceFile.substr(0, sourceFile.find_last_of('.'));
     
     // Compile the solution
-    if (!compileSolution(sourceFile, executableName)) {
+    if (!compileSolution(actualFile, executableName)) {
         return 1;
     }
     
     cout << endl;
     
     // Check for custom data structures and inform user
-    bool hasListNode = containsDataStructure(sourceFile, "ListNode");
-    bool hasTreeNode = containsDataStructure(sourceFile, "TreeNode");
+    bool hasListNode = containsDataStructure(actualFile, "ListNode");
+    bool hasTreeNode = containsDataStructure(actualFile, "TreeNode");
     
     if (hasListNode || hasTreeNode) {
         cout << BLUE << "ℹ This problem uses custom data structures (";
@@ -494,7 +535,7 @@ int main(int argc, char* argv[]) {
     }
     
     // Parse examples with expected outputs from description
-    auto examples = parseExamplesFromDescription(sourceFile);
+    auto examples = parseExamplesFromDescription(actualFile);
     
     if (examples.empty()) {
         cout << YELLOW << "⚠ No examples with expected outputs found in description" << RESET << endl;
@@ -502,7 +543,7 @@ int main(int argc, char* argv[]) {
         cout << endl;
         
         // Fallback to running test cases without validation
-        vector<string> testCases = parseExampleTestCases(sourceFile);
+        vector<string> testCases = parseExampleTestCases(actualFile);
         if (!testCases.empty()) {
             cout << BLUE << "Found " << testCases.size() << " test input line(s)" << RESET << endl;
             string output = runTestWithInput(executableName, testCases);

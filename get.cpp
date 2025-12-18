@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <sstream>
 #include <regex>
+#include <sys/stat.h>
 
 using namespace std;
 
@@ -828,12 +829,37 @@ string generateSimpleMain(const string& exampleTestcases, const string& cppCode)
     return code;
 }
 
+// Helper: determine directory range for problem ID
+string getDirectoryForProblemId(int problemId) {
+    int rangeStart = (problemId / 100) * 100;
+    int rangeEnd = rangeStart + 99;
+    return to_string(rangeStart) + "-" + to_string(rangeEnd);
+}
+
+// Helper: create directory if it doesn't exist
+bool ensureDirectoryExists(const string& dirPath) {
+    struct stat info;
+    if (stat(dirPath.c_str(), &info) == 0) {
+        return S_ISDIR(info.st_mode);
+    }
+    // Try to create directory
+    return mkdir(dirPath.c_str(), 0755) == 0;
+}
+
 // Function to create problem template file
 void createProblemFile(const string& problemNum, const string& title, 
                        const string& difficulty, const string& titleSlug,
                        const string& content, const string& exampleTestcases,
                        const string& cppCode) {
-    string filename = problemNum + ".cpp";
+    // Determine directory and create if needed
+    int problemId = stoi(problemNum);
+    string directory = getDirectoryForProblemId(problemId);
+    if (!ensureDirectoryExists(directory)) {
+        cerr << "Error: Could not create directory " << directory << endl;
+        return;
+    }
+    
+    string filename = directory + "/" + problemNum + ".cpp";
     
     // Check if file already exists, if so append -1, -2, etc.
     ifstream checkFile(filename);
@@ -841,7 +867,7 @@ void createProblemFile(const string& problemNum, const string& title,
         checkFile.close();
         int suffix = 1;
         while (true) {
-            filename = problemNum + "-" + to_string(suffix) + ".cpp";
+            filename = directory + "/" + problemNum + "-" + to_string(suffix) + ".cpp";
             ifstream checkFile2(filename);
             if (!checkFile2.good()) {
                 break;
