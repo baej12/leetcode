@@ -54,26 +54,18 @@ using namespace std;
 class Solution {
 public:
     vector<int> twoSum(vector<int>& nums, int target) {
-        unordered_map<int, int> seen;
-        for (int i = 0; i < nums.size(); i++) {
-            int complement = target - nums[i];
-            if (seen.find(complement) != seen.end()) {
-                return {seen[complement], i};
-            }
-            seen[nums[i]] = i;
-        }
-        return {};
+        
     }
 };
 
 int main() {
     Solution sol;
     
-    // Read input array like [2,7,11,15]
+    // Read input
     string line;
     getline(cin, line);
     
-    // Parse array
+    // Parse input (modify based on problem requirements)
     vector<int> nums;
     size_t start = line.find('[');
     size_t end = line.find(']');
@@ -86,15 +78,9 @@ int main() {
         }
     }
     
-    // Read target
-    int target;
-    cin >> target;
-    
-    // Solve
-    vector<int> result = sol.twoSum(nums, target);
-    
-    // Output
-    cout << "[" << result[0] << "," << result[1] << "]" << endl;
+    // Call solution and output result
+    // TODO: Modify based on function signature
+    // cout << sol.functionName(args) << endl;
     
     return 0;
 }

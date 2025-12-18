@@ -48,6 +48,22 @@ string executeCommand(const string& command) {
     return result;
 }
 
+// Helper function to check if file contains a data structure definition
+bool containsDataStructure(const string& filename, const string& structName) {
+    ifstream file(filename);
+    if (!file.is_open()) return false;
+    
+    string line;
+    while (getline(file, line)) {
+        if (line.find("struct " + structName) != string::npos) {
+            file.close();
+            return true;
+        }
+    }
+    file.close();
+    return false;
+}
+
 // Function to parse example test cases from file
 vector<string> parseExampleTestCases(const string& filename) {
     vector<string> testCases;
@@ -293,6 +309,26 @@ int main(int argc, char* argv[]) {
     }
     
     cout << endl;
+    
+    // Check for custom data structures
+    bool hasListNode = containsDataStructure(sourceFile, "ListNode");
+    bool hasTreeNode = containsDataStructure(sourceFile, "TreeNode");
+    
+    if (hasListNode || hasTreeNode) {
+        cout << YELLOW << "⚠ This problem uses custom data structures (";
+        if (hasListNode) cout << "ListNode";
+        if (hasListNode && hasTreeNode) cout << ", ";
+        if (hasTreeNode) cout << "TreeNode";
+        cout << ")" << RESET << endl;
+        cout << "Automated testing for these types is not yet supported." << endl;
+        cout << "Please test manually or on LeetCode directly." << endl;
+        cout << endl;
+        
+        // Cleanup and exit
+        string cleanupCmd = "rm -f " + executableName;
+        system(cleanupCmd.c_str());
+        return 0;
+    }
     
     // Parse examples with expected outputs from description
     auto examples = parseExamplesFromDescription(sourceFile);
