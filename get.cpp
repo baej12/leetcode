@@ -366,11 +366,208 @@ bool fetchProblemInfo(const string& problemIdentifier, string& title, string& di
     return false;
 }
 
+// Helper function to generate main() for ListNode intersection problems (headA, headB)
+string generateListNodeIntersectionMain(const string& exampleTestcases) {
+    // Parse first example if available
+    string firstExample = "";
+    if (!exampleTestcases.empty()) {
+        istringstream stream(exampleTestcases);
+        vector<string> lines;
+        string line;
+        int count = 0;
+        while (getline(stream, line) && count < 5) {
+            lines.push_back(line);
+            count++;
+        }
+        if (lines.size() >= 5) {
+            for (const auto& l : lines) {
+                firstExample += "    // " + l + "\n";
+            }
+        }
+    }
+    
+    string code = R"(// Helper to parse array from string
+vector<int> parseArray(const string& line) {
+    vector<int> values;
+    size_t start = line.find('[');
+    size_t end = line.find(']');
+    if (start != string::npos && end != string::npos) {
+        string content = line.substr(start + 1, end - start - 1);
+        if (!content.empty()) {
+            stringstream ss(content);
+            string num;
+            while (getline(ss, num, ',')) {
+                values.push_back(stoi(num));
+            }
+        }
+    }
+    return values;
+}
+
+// Helper to build linked list from array
+ListNode* buildList(const vector<int>& values) {
+    if (values.empty()) return nullptr;
+    ListNode* head = new ListNode(values[0]);
+    ListNode* current = head;
+    for (size_t i = 1; i < values.size(); i++) {
+        current->next = new ListNode(values[i]);
+        current = current->next;
+    }
+    return head;
+}
+
+// Helper to get node at position
+ListNode* getNodeAt(ListNode* head, int pos) {
+    ListNode* current = head;
+    for (int i = 0; i < pos && current != nullptr; i++) {
+        current = current->next;
+    }
+    return current;
+}
+
+int main() {
+    Solution sol;
+    string line;
+    
+    // Example input (uncomment #define to test directly):
+    // #define USE_EXAMPLE_INPUT
+    
+#ifdef USE_EXAMPLE_INPUT
+    // Example 1
+)";
+    
+    if (!firstExample.empty()) {
+        // Parse the example to create variable assignments
+        istringstream stream(exampleTestcases);
+        vector<string> exLines;
+        string exLine;
+        int count = 0;
+        while (getline(stream, exLine) && count < 5) {
+            exLines.push_back(exLine);
+            count++;
+        }
+        
+        if (exLines.size() >= 5) {
+            code += "    int intersectVal = " + exLines[0] + ";\n";
+            // Parse arrays - replace [] with {} for C++ initialization
+            string arrA = exLines[1];
+            if (arrA[0] == '[') arrA[0] = '{';
+            if (arrA[arrA.length()-1] == ']') arrA[arrA.length()-1] = '}';
+            string arrB = exLines[2];
+            if (arrB[0] == '[') arrB[0] = '{';
+            if (arrB[arrB.length()-1] == ']') arrB[arrB.length()-1] = '}';
+            code += "    vector<int> valuesA = " + arrA + ";\n";
+            code += "    vector<int> valuesB = " + arrB + ";\n";
+            code += "    int skipA = " + exLines[3] + ";\n";
+            code += "    int skipB = " + exLines[4] + ";\n";
+        }
+    }
+    
+    code += R"(#else
+    // Read intersectVal
+    getline(cin, line);
+    int intersectVal = stoi(line);
+    
+    // Read listA
+    getline(cin, line);
+    vector<int> valuesA = parseArray(line);
+    
+    // Read listB  
+    getline(cin, line);
+    vector<int> valuesB = parseArray(line);
+    
+    // Read skipA
+    getline(cin, line);
+    int skipA = stoi(line);
+    
+    // Read skipB
+    getline(cin, line);
+    int skipB = stoi(line);
+#endif
+    
+    // Build lists
+    ListNode* headA = buildList(valuesA);
+    ListNode* headB = buildList(valuesB);
+    
+    // Create intersection if exists
+    if (intersectVal != 0) {
+        ListNode* intersectNode = getNodeAt(headA, skipA);
+        ListNode* tailB = getNodeAt(headB, skipB - 1);
+        if (tailB && intersectNode) {
+            tailB->next = intersectNode;
+        }
+    }
+    
+    // Call solution
+    ListNode* result = sol.getIntersectionNode(headA, headB);
+    
+    // Output result
+    if (result) {
+        cout << "Intersected at '" << result->val << "'" << endl;
+    } else {
+        cout << "No intersection" << endl;
+    }
+    
+    // Cleanup
+    if (intersectVal != 0) {
+        ListNode* curr = headB;
+        for (int i = 0; i < skipB && curr; i++) {
+            ListNode* temp = curr;
+            curr = curr->next;
+            delete temp;
+        }
+    } else {
+        while (headB) {
+            ListNode* temp = headB;
+            headB = headB->next;
+            delete temp;
+        }
+    }
+    while (headA) {
+        ListNode* temp = headA;
+        headA = headA->next;
+        delete temp;
+    }
+    
+    return 0;
+})";
+    
+    return code;
+}
+
 // Helper function to generate main() for ListNode problems
-string generateListNodeMain() {
-    return R"(int main() {
+string generateListNodeMain(const string& exampleTestcases) {
+    // Parse first example if available
+    string firstExample = "";
+    if (!exampleTestcases.empty()) {
+        istringstream stream(exampleTestcases);
+        string line;
+        if (getline(stream, line)) {
+            firstExample = "    // " + line;
+        }
+    }
+    
+    string code = R"(int main() {
     Solution sol;
     
+    // Example input (uncomment #define to test directly):
+    // #define USE_EXAMPLE_INPUT
+    
+#ifdef USE_EXAMPLE_INPUT
+    // Example 1
+)";
+    
+    if (!firstExample.empty()) {
+        // Parse and create variable assignment
+        istringstream stream(exampleTestcases);
+        string exLine;
+        if (getline(stream, exLine)) {
+            code += "    string line = \"" + exLine + "\";\n";
+            code += "    vector<int> values = parseArray(line);\n";
+        }
+    }
+    
+    code += R"(#else
     // Read input - linked list format: [1,2,3,4,5]
     string line;
     getline(cin, line);
@@ -389,6 +586,7 @@ string generateListNodeMain() {
             }
         }
     }
+#endif
     
     // Build linked list
     ListNode* head = nullptr;
@@ -417,16 +615,45 @@ string generateListNodeMain() {
     
     return 0;
 })";
+    
+    return code;
 }
 
 // Helper function to generate main() for TreeNode problems
-string generateTreeNodeMain() {
-    return R"(int main() {
+string generateTreeNodeMain(const string& exampleTestcases) {
+    // Parse first example if available
+    string firstExample = "";
+    if (!exampleTestcases.empty()) {
+        istringstream stream(exampleTestcases);
+        string line;
+        if (getline(stream, line)) {
+            firstExample = "    // " + line;
+        }
+    }
+    
+    string code = R"(int main() {
     Solution sol;
     
+    // Example input (uncomment #define to test directly):
+    // #define USE_EXAMPLE_INPUT
+    
+#ifdef USE_EXAMPLE_INPUT
+    // Example 1
+)";
+    
+    if (!firstExample.empty()) {
+        istringstream stream(exampleTestcases);
+        string exLine;
+        if (getline(stream, exLine)) {
+            code += "    string line = \"" + exLine + "\";\n";
+        }
+    }
+    
+    code += R"(#else
     // Read input - tree format: [3,9,20,null,null,15,7]
     string line;
     getline(cin, line);
+#endif
     
     // Parse array with null support
     vector<string> values;
@@ -483,6 +710,8 @@ string generateTreeNodeMain() {
     
     return 0;
 })";
+    
+    return code;
 }
 
 // Function to create problem template file
@@ -589,11 +818,17 @@ void createProblemFile(const string& problemNum, const string& title,
     bool hasListNode = (dataStructures.find("struct ListNode") != string::npos);
     bool hasTreeNode = (dataStructures.find("struct TreeNode") != string::npos);
     
+    // Check if it's a two-list intersection problem (headA, headB parameters)
+    bool isIntersectionProblem = (cppCode.find("headA") != string::npos && 
+                                   cppCode.find("headB") != string::npos);
+    
     // Generate appropriate main() based on data structures
-    if (hasListNode) {
-        file << generateListNodeMain() << endl;
+    if (hasListNode && isIntersectionProblem) {
+        file << generateListNodeIntersectionMain(exampleTestcases) << endl;
+    } else if (hasListNode) {
+        file << generateListNodeMain(exampleTestcases) << endl;
     } else if (hasTreeNode) {
-        file << generateTreeNodeMain() << endl;
+        file << generateTreeNodeMain(exampleTestcases) << endl;
     } else {
         // Default main() for array/integer problems
         file << "int main() {" << endl;
