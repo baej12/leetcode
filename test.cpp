@@ -303,10 +303,6 @@ vector<pair<vector<string>, string>> parseExamplesFromDescription(const string& 
         
         // Stop at Example Test Cases section
         if (inDescription && line.find("Example Test Cases:") != string::npos) {
-            // Save last example if exists
-            if (!currentInput.empty() && !currentOutput.empty()) {
-                examples.push_back({currentInput, currentOutput});
-            }
             break;
         }
         
@@ -495,12 +491,23 @@ string trim(const string& str) {
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
-        cerr << "Usage: " << argv[0] << " <solution-file.cpp>" << endl;
-        cerr << "Example: " << argv[0] << " 42.cpp" << endl;
+        cerr << "Usage: " << argv[0] << " <problem_number>[.cpp]" << endl;
+        cerr << "Examples:" << endl;
+        cerr << "  " << argv[0] << " 121" << endl;
+        cerr << "  " << argv[0] << " 121-1" << endl;
+        cerr << "  " << argv[0] << " 121.cpp" << endl;
         return 1;
     }
     
-    string sourceFile = argv[1];
+    string input = argv[1];
+    string sourceFile;
+    
+    // If input doesn't end with .cpp, add it
+    if (input.find(".cpp") == string::npos) {
+        sourceFile = input + ".cpp";
+    } else {
+        sourceFile = input;
+    }
     
     // Try to find the file in directory structure or root
     string actualFile = findProblemFile(sourceFile);
