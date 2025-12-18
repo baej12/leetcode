@@ -2,16 +2,18 @@ This README exists to log some of the answers I have submitted to leetcode.
 
 ## Tools
 
-This repository includes two utilities:
+This repository includes three utilities:
 - **`get`** - Fetches LeetCode problems and creates template files
 - **`test`** - Compiles and tests your solutions
+- **`export`** - Exports your solution in a clean, copy-pastable format for LeetCode
 
 ### Building the Tools
 
 ```bash
-make        # Builds both get and test
-make get    # Builds only the get utility
-make test   # Builds only the test utility
+make          # Builds all utilities
+make get      # Builds only the get utility
+make test     # Builds only the test utility
+make export   # Builds only the export utility
 ```
 
 ### Usage
@@ -86,6 +88,32 @@ The `test` utility:
 - The tool shows compilation warnings/errors if any
 - The executable is automatically cleaned up after testing
 - You should verify the output matches the expected results from the problem description
+
+## Export Tool
+
+### Usage
+
+```bash
+./export <problem-number>
+```
+
+**Examples:**
+```bash
+./export 121        # Exports 121.cpp
+./export 121-1      # Exports 121-1.cpp
+./export 121.cpp    # Also works with .cpp extension
+```
+
+### What It Does
+
+The `export` utility:
+1. Locates your solution file in the appropriate directory
+2. Extracts only the `Solution` class from your file
+3. Displays it in a clean, formatted output
+4. **Automatically copies to your clipboard** (macOS)
+5. **Saves to `<directory>/solutions/<problem>.txt`** (e.g., `100-199/solutions/121-1.txt`)
+
+This removes all the test code, includes, and comments, leaving just the solution that LeetCode expects. After running, you can paste directly into LeetCode (⌘+V) or open the .txt file for easy Ctrl+A, Ctrl+C copying!
 
 ### Requirements
 
