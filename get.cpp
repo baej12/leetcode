@@ -714,6 +714,120 @@ string generateTreeNodeMain(const string& exampleTestcases) {
     return code;
 }
 
+// Helper: try to extract a simple method signature (return type, name, single int parameter)
+static bool extractSingleIntMethod(const string& cppCode, string& returnType, string& methodName) {
+    vector<string> retTypes = {"bool", "int", "long long", "double"};
+    for (const auto& rt : retTypes) {
+        // Find a method starting with the return type
+        size_t pos = cppCode.find(rt + " ");
+        while (pos != string::npos) {
+            // Get the rest of the line
+            size_t nameStart = pos + rt.size() + 1;
+            // Skip spaces
+            while (nameStart < cppCode.size() && isspace(cppCode[nameStart])) nameStart++;
+            // Read method name until '('
+            size_t parenPos = cppCode.find('(', nameStart);
+            if (parenPos == string::npos) break;
+            string name = cppCode.substr(nameStart, parenPos - nameStart);
+            // Trim trailing spaces
+            size_t endTrim = name.find_last_not_of(" \t\r\n");
+            if (endTrim != string::npos) name = name.substr(0, endTrim + 1);
+
+            // Read parameter list
+            size_t closePos = cppCode.find(')', parenPos);
+            if (closePos == string::npos) break;
+            string params = cppCode.substr(parenPos + 1, closePos - parenPos - 1);
+            // Normalize spaces
+            for (char& c : params) if (c == '\n' || c == '\t') c = ' ';
+
+            // Heuristic: single int parameter (no comma)
+            if (params.find(',') == string::npos && (params.find("int ") != string::npos || params == "int")) {
+                returnType = rt;
+                methodName = name;
+                return true;
+            }
+            // Look for next occurrence of rt
+            pos = cppCode.find(rt + " ", pos + 1);
+        }
+    }
+    return false;
+}
+
+// Helper function to generate main() for simple single-int parameter problems (e.g., 231)
+string generateSimpleMain(const string& exampleTestcases, const string& cppCode) {
+    string returnType, methodName;
+    bool ok = extractSingleIntMethod(cppCode, returnType, methodName);
+    if (!ok) {
+        // Fallback to previous default behavior if we couldn't detect signature
+        return R"(int main() {
+    Solution sol;
+    
+    // Read input
+    string line;
+    getline(cin, line);
+    
+    // Parse input (modify based on problem requirements)
+    vector<int> nums;
+    size_t start = line.find('[');
+    size_t end = line.find(']');
+    if (start != string::npos && end != string::npos) {
+        string content = line.substr(start + 1, end - start - 1);
+        stringstream ss(content);
+        string num;
+        while (getline(ss, num, ',')) {
+            nums.push_back(stoi(num));
+        }
+    }
+    
+    // Call solution and output result
+    // TODO: Modify based on function signature
+    // cout << sol.functionName(args) << endl;
+    
+    return 0;
+})";
+    }
+
+    // Attempt to parse first example input value for USE_EXAMPLE_INPUT
+    string firstVal = "";
+    if (!exampleTestcases.empty()) {
+        istringstream es(exampleTestcases);
+        string exLine;
+        if (getline(es, exLine)) {
+            // Trim
+            size_t s = exLine.find_first_not_of(" \t\r\n");
+            size_t e = exLine.find_last_not_of(" \t\r\n");
+            if (s != string::npos && e != string::npos) firstVal = exLine.substr(s, e - s + 1);
+        }
+    }
+
+    // Generate main with stdin and optional example mode
+    string code;
+    code += "int main() {\n";
+    code += "    Solution sol;\n";
+    code += "    string line;\n\n";
+    code += "    // Example input (uncomment #define to test directly):\n";
+    code += "    // #define USE_EXAMPLE_INPUT\n\n";
+    code += "#ifdef USE_EXAMPLE_INPUT\n";
+    if (!firstVal.empty()) {
+        code += "    int n = " + firstVal + ";\n";
+    } else {
+        code += "    int n = 1;\n";
+    }
+    code += "#else\n";
+    code += "    getline(cin, line);\n";
+    code += "    int n = stoi(line);\n";
+    code += "#endif\n\n";
+    code += "    auto result = sol." + methodName + "(n);\n";
+    if (returnType == "bool") {
+        code += "    cout << (result ? \"true\" : \"false\") << endl;\n";
+    } else {
+        code += "    cout << result << endl;\n";
+    }
+    code += "    return 0;\n";
+    code += "}";
+    return code;
+}
+
 // Function to create problem template file
 void createProblemFile(const string& problemNum, const string& title, 
                        const string& difficulty, const string& titleSlug,
@@ -830,33 +944,8 @@ void createProblemFile(const string& problemNum, const string& title,
     } else if (hasTreeNode) {
         file << generateTreeNodeMain(exampleTestcases) << endl;
     } else {
-        // Default main() for array/integer problems
-        file << "int main() {" << endl;
-        file << "    Solution sol;" << endl;
-        file << "    " << endl;
-        file << "    // Read input" << endl;
-        file << "    string line;" << endl;
-        file << "    getline(cin, line);" << endl;
-        file << "    " << endl;
-        file << "    // Parse input (modify based on problem requirements)" << endl;
-        file << "    vector<int> nums;" << endl;
-        file << "    size_t start = line.find('[');" << endl;
-        file << "    size_t end = line.find(']');" << endl;
-        file << "    if (start != string::npos && end != string::npos) {" << endl;
-        file << "        string content = line.substr(start + 1, end - start - 1);" << endl;
-        file << "        stringstream ss(content);" << endl;
-        file << "        string num;" << endl;
-        file << "        while (getline(ss, num, ',')) {" << endl;
-        file << "            nums.push_back(stoi(num));" << endl;
-        file << "        }" << endl;
-        file << "    }" << endl;
-        file << "    " << endl;
-        file << "    // Call solution and output result" << endl;
-        file << "    // TODO: Modify based on function signature" << endl;
-        file << "    // cout << sol.functionName(args) << endl;" << endl;
-        file << "    " << endl;
-        file << "    return 0;" << endl;
-        file << "}" << endl;
+        // Attempt to auto-generate a simple stdin-compatible main from signature (e.g., single int parameter)
+        file << generateSimpleMain(exampleTestcases, cppCode) << endl;
     }
     
     file.close();
