@@ -20,6 +20,15 @@
  * Example 3:
  * Input: n = 3
  * Output: false
+ * Example 4:
+ * Input: n = 1073741825
+ * Output: false
+ * Example 5:
+ * Input: n = -16
+ * Output: false
+ * Example 5:
+ * Input: n = -8
+ * Output: false
  *  
  * Constraints:
  * 	-231 <= n <= 231 - 1
@@ -50,11 +59,17 @@ public:
     bool isPowerOfTwo(int n) {
         if (n == 1) return true;
 
-        for (int i = 2; i <= n; i *= 2) {
-            if (i == n) return true;
+        string str = bitset<64>(n).to_string();
+        bool foundOne = false;
+
+        for (auto i : str) {
+            if (i == '1') {
+                if (foundOne) return false;
+                foundOne = true;
+            }
         }
 
-        return false;
+        return foundOne;
     }
 };
 
