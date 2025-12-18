@@ -56,16 +56,14 @@ public:
         }
 
         int currMax = nums[0];
+        int solution = nums[0];
 
-        for (int y = 0; y < nums.size(); ++y) {
-            int currSum = nums[y];
-            for (int x = y + 1; x < nums.size(); ++x) {
-                currSum += nums[x];
-                currMax = max(currSum, currMax);
-            }
+        for (int x = 1; x < nums.size(); ++x) {
+            currMax = max(currMax + nums[x], nums[x]);
+            solution = max(solution, currMax);
         }
 
-        return currMax;
+        return solution;
     }
 };
 
