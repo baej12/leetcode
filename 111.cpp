@@ -39,6 +39,16 @@
 
 using namespace std;
 
+// Data structure definition(s)
+struct TreeNode {
+    int val;
+    TreeNode *left;
+    TreeNode *right;
+    TreeNode() : val(0), left(nullptr), right(nullptr) {}
+    TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
+    TreeNode(int x, TreeNode *left, TreeNode *right) : val(x), left(left), right(right) {}
+};
+
 /**
  * Definition for a binary tree node.
  * struct TreeNode {
@@ -50,40 +60,10 @@ using namespace std;
  *     TreeNode(int x, TreeNode *left, TreeNode *right) : val(x), left(left), right(right) {}
  * };
  */
-
-struct TreeNode {
-    int val;
-    TreeNode *left;
-    TreeNode *right;
-    TreeNode() : val(0), left(nullptr), right(nullptr) {}
-    TreeNode(int x) : val(x), left(nullptr), right(nullptr) {}
-    TreeNode(int x, TreeNode *left, TreeNode *right) : val(x), left(left), right(right) {}
-};
-
 class Solution {
 public:
-    int explore(TreeNode* node) {
-        if (node == NULL) {
-            return 0;
-        }
-
-        if (node->left == NULL && node->right == NULL) {
-            return 1;
-        }
-
-        if (node->left != NULL && node->right == NULL) {
-            return 1 + explore(node->left);
-        }
-
-        if (node->right != NULL && node->left == NULL) {
-            return 1 + explore(node->right);
-        }
-
-        return 1 + min(explore(node->left), explore(node->right));
-    }
-
     int minDepth(TreeNode* root) {
-        return explore(root);
+        
     }
 };
 

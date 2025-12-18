@@ -218,6 +218,63 @@ string extractContent(const string& json, const string& field) {
     return result;
 }
 
+// Function to extract data structure definitions from code snippet
+string extractDataStructures(const string& cppCode) {
+    string result = "";
+    size_t pos = 0;
+    
+    // Look for struct or class definitions (typically commented out in LeetCode snippets)
+    // They appear in comments like: * struct TreeNode { ... }; or * struct ListNode { ... };
+    
+    // Find all comment blocks with struct definitions
+    while ((pos = cppCode.find("struct ", pos)) != string::npos) {
+        // Check if this is in a comment (preceded by * or /*)
+        size_t lineStart = cppCode.rfind('\n', pos);
+        if (lineStart == string::npos) lineStart = 0;
+        
+        string linePrefix = cppCode.substr(lineStart, pos - lineStart);
+        bool inComment = (linePrefix.find("*") != string::npos || linePrefix.find("//") != string::npos);
+        
+        if (inComment) {
+            // Extract the struct definition
+            size_t structStart = pos;
+            size_t structEnd = cppCode.find("};", pos);
+            
+            if (structEnd != string::npos) {
+                structEnd += 2; // Include the closing };
+                string structDef = cppCode.substr(structStart, structEnd - structStart);
+                
+                // Clean up the comment markers and fix indentation
+                string cleaned = "";
+                istringstream stream(structDef);
+                string line;
+                while (getline(stream, line)) {
+                    // Remove leading * and whitespace from comment lines
+                    size_t contentStart = line.find_first_not_of(" \t*");
+                    if (contentStart != string::npos) {
+                        string content = line.substr(contentStart);
+                        // Add proper indentation for struct members
+                        if (content.find("struct ") != 0 && content.find("};") != 0) {
+                            cleaned += "    " + content + "\n";
+                        } else {
+                            cleaned += content + "\n";
+                        }
+                    }
+                }
+                
+                result += cleaned + "\n";
+                pos = structEnd;
+            } else {
+                pos++;
+            }
+        } else {
+            pos++;
+        }
+    }
+    
+    return result;
+}
+
 // Function to extract C++ code snippet from codeSnippets
 string extractCppCodeSnippet(const string& json) {
     // Find the C++ code snippet in the codeSnippets array
@@ -389,6 +446,13 @@ void createProblemFile(const string& problemNum, const string& title,
     file << endl;
     file << "using namespace std;" << endl;
     file << endl;
+    
+    // Extract and write data structure definitions if present
+    string dataStructures = extractDataStructures(cppCode);
+    if (!dataStructures.empty()) {
+        file << "// Data structure definition(s)" << endl;
+        file << dataStructures;
+    }
     
     // Write the Solution class with the actual function signature if available
     if (!cppCode.empty()) {
