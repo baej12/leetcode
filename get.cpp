@@ -843,7 +843,11 @@ bool ensureDirectoryExists(const string& dirPath) {
         return S_ISDIR(info.st_mode);
     }
     // Try to create directory
+#ifdef _WIN32
+    return mkdir(dirPath.c_str()) == 0;
+#else
     return mkdir(dirPath.c_str(), 0755) == 0;
+#endif
 }
 
 // Function to create problem template file
