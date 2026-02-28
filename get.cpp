@@ -803,8 +803,63 @@ static bool extractSingleIntMethod(const string& cppCode, string& returnType, st
     return false;
 }
 
+// Helper function to generate main() using Python helper script
+string generateMainWithPython(const string& cppCode) {
+    // Escape single quotes in the code for shell
+    string escapedCode = cppCode;
+    size_t pos = 0;
+    while ((pos = escapedCode.find("'", pos)) != string::npos) {
+        escapedCode.replace(pos, 1, "'\\''");
+        pos += 4;
+    }
+    
+    // Call Python helper script
+    string command = "python3 generate_main.py '" + escapedCode + "' 2>/dev/null";
+    string result = executeCommand(command);
+    
+    // If Python script succeeded, return its output
+    if (!result.empty() && result.find("int main()") != string::npos) {
+        return result;
+    }
+    
+    // Fallback to default template if Python script fails
+    return R"(int main() {
+    Solution sol;
+    
+    // Read input
+    string line;
+    getline(cin, line);
+    
+    // Parse input (modify based on problem requirements)
+    vector<int> nums;
+    size_t start = line.find('[');
+    size_t end = line.find(']');
+    if (start != string::npos && end != string::npos) {
+        string content = line.substr(start + 1, end - start - 1);
+        stringstream ss(content);
+        string num;
+        while (getline(ss, num, ',')) {
+            nums.push_back(stoi(num));
+        }
+    }
+    
+    // Call solution and output result
+    // TODO: Modify based on function signature
+    // cout << sol.functionName(args) << endl;
+    
+    return 0;
+})";
+}
+
 // Helper function to generate main() for simple single-int parameter problems (e.g., 231)
 string generateSimpleMain(const string& exampleTestcases, const string& cppCode) {
+    // Try using Python helper first
+    string pythonGenerated = generateMainWithPython(cppCode);
+    if (!pythonGenerated.empty()) {
+        return pythonGenerated;
+    }
+    
+    // Fallback to old simple logic for single-int parameters
     string returnType, methodName;
     bool ok = extractSingleIntMethod(cppCode, returnType, methodName);
     if (!ok) {
