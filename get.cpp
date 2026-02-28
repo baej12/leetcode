@@ -5,9 +5,18 @@
 #include <cstdio>
 #include <sstream>
 #include <regex>
+#include <filesystem>
 #include <sys/stat.h>
 
 using namespace std;
+
+#ifdef _WIN32
+#define POPEN _popen
+#define PCLOSE _pclose
+#else
+#define POPEN popen
+#define PCLOSE pclose
+#endif
 
 // Forward declaration
 string executeCommand(const string& command);
@@ -57,7 +66,7 @@ string executeCurlPostJson(const string& url, const string& jsonPayload) {
 
 // Function to execute shell command and capture output
 string executeCommand(const string& command) {
-    FILE* pipe = popen(command.c_str(), "r");
+    FILE* pipe = POPEN(command.c_str(), "r");
     if (!pipe) {
         cerr << "Error: Failed to execute command" << endl;
         return "";
@@ -68,7 +77,7 @@ string executeCommand(const string& command) {
     while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
         result += buffer;
     }
-    pclose(pipe);
+    PCLOSE(pipe);
     return result;
 }
 
@@ -878,16 +887,11 @@ string getDirectoryForProblemId(int problemId) {
 
 // Helper: create directory if it doesn't exist
 bool ensureDirectoryExists(const string& dirPath) {
-    struct stat info;
-    if (stat(dirPath.c_str(), &info) == 0) {
-        return S_ISDIR(info.st_mode);
+    std::error_code ec;
+    if (std::filesystem::exists(dirPath, ec)) {
+        return std::filesystem::is_directory(dirPath, ec);
     }
-    // Try to create directory
-#ifdef _WIN32
-    return mkdir(dirPath.c_str()) == 0;
-#else
-    return mkdir(dirPath.c_str(), 0755) == 0;
-#endif
+    return std::filesystem::create_directories(dirPath, ec);
 }
 
 // Function to create problem template file
@@ -1019,7 +1023,7 @@ void createProblemFile(const string& problemNum, const string& title,
     }
     
     file.close();
-    cout << "\n✓ Successfully created " << filename << endl;
+    cout << "\n[OK] Successfully created " << filename << endl;
     cout << "  Problem #" << problemNum << ": " << title << endl;
     cout << "  Difficulty: " << difficulty << endl;
     cout << "  URL: https://leetcode.com/problems/" << titleSlug << "/" << endl;
@@ -1047,7 +1051,7 @@ int main(int argc, char* argv[]) {
         
         createProblemFile(problemNum, title, difficulty, titleSlug, content, exampleTestcases, cppCode);
     } else {
-        cerr << "\n✗ Failed to fetch problem information." << endl;
+        cerr << "\n[ERR] Failed to fetch problem information." << endl;
         cerr << "  Make sure you have curl installed and internet connection." << endl;
         cerr << "  Verify the problem number/slug is correct." << endl;
         return 1;

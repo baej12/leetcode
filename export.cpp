@@ -7,9 +7,19 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <cstdio>
+#include <filesystem>
 #include <sys/stat.h>
 
 using namespace std;
+
+#ifdef _WIN32
+#define POPEN _popen
+#define PCLOSE _pclose
+#else
+#define POPEN popen
+#define PCLOSE pclose
+#endif
 
 // ANSI color codes
 const string GREEN = "\033[32m";
@@ -17,6 +27,7 @@ const string BLUE = "\033[34m";
 const string YELLOW = "\033[33m";
 const string RED = "\033[31m";
 const string RESET = "\033[0m";
+const string SEP = "===============================================================";
 
 // Function to check if file exists
 bool fileExists(const string& filename) {
@@ -64,35 +75,46 @@ string findProblemFile(const string& filename) {
     return "";
 }
 
-// Function to copy text to clipboard (macOS)
-bool copyToClipboard(const string& text) {
-    FILE* pipe = popen("pbcopy", "w");
+// Helper to send text to a command's stdin
+bool pipeTextToCommand(const string& command, const string& text) {
+    FILE* pipe = POPEN(command.c_str(), "w");
     if (!pipe) {
         return false;
     }
     
     fwrite(text.c_str(), sizeof(char), text.length(), pipe);
-    int result = pclose(pipe);
-    
+    int result = PCLOSE(pipe);
     return (result == 0);
+}
+    
+// Function to copy text to clipboard
+bool copyToClipboard(const string& text) {
+#ifdef _WIN32
+    return pipeTextToCommand("clip", text);
+#elif defined(__APPLE__)
+    return pipeTextToCommand("pbcopy", text);
+#else
+    // Linux: try Wayland first, then X11 tools
+    if (pipeTextToCommand("wl-copy", text)) return true;
+    if (pipeTextToCommand("xclip -selection clipboard", text)) return true;
+    if (pipeTextToCommand("xsel --clipboard --input", text)) return true;
+    return false;
+#endif
 }
 
 // Function to create directory if it doesn't exist
 bool createDirectory(const string& path) {
-    struct stat st;
-    if (stat(path.c_str(), &st) == 0) {
-        return true; // Directory already exists
+    std::error_code ec;
+    if (std::filesystem::exists(path, ec)) {
+        return std::filesystem::is_directory(path, ec);
     }
-    
-    // Try to create directory
-    string command = "mkdir -p \"" + path + "\"";
-    return (system(command.c_str()) == 0);
+    return std::filesystem::create_directories(path, ec);
 }
 
 // Function to save solution to file
 bool saveToFile(const vector<string>& solutionLines, const string& outputPath) {
     // Extract directory path and create it if needed
-    size_t lastSlash = outputPath.find_last_of('/');
+    size_t lastSlash = outputPath.find_last_of("/\\");
     if (lastSlash != string::npos) {
         string dirPath = outputPath.substr(0, lastSlash);
         if (!createDirectory(dirPath)) {
@@ -173,19 +195,19 @@ bool exportSolution(const string& filepath) {
     }
     
     // Print header
-    cout << BLUE << "═══════════════════════════════════════════════════════════════" << RESET << endl;
+    cout << BLUE << SEP << RESET << endl;
     cout << GREEN << "Solution exported from: " << RESET << filepath << endl;
-    cout << BLUE << "═══════════════════════════════════════════════════════════════" << RESET << endl;
+    cout << BLUE << SEP << RESET << endl;
     cout << endl;
     
     // Print the solution class
     cout << solutionText;
     
-    cout << BLUE << "═══════════════════════════════════════════════════════════════" << RESET << endl;
+    cout << BLUE << SEP << RESET << endl;
     
     // Determine output file path (e.g., 100-199/solutions/121-1.txt)
     string outputPath;
-    size_t lastSlash = filepath.find_last_of('/');
+    size_t lastSlash = filepath.find_last_of("/\\");
     if (lastSlash != string::npos) {
         // File is in a subdirectory (e.g., "100-199/121-1.cpp")
         string directory = filepath.substr(0, lastSlash);
@@ -215,22 +237,22 @@ bool exportSolution(const string& filepath) {
     bool savedToFile = saveToFile(solutionLines, outputPath);
     
     if (copiedToClipboard) {
-        cout << GREEN << "✓ Copied to clipboard!" << RESET << endl;
+        cout << GREEN << "[OK] Copied to clipboard!" << RESET << endl;
         if (savedToFile) {
-            cout << GREEN << "✓ Saved to " << outputPath << RESET << endl;
+            cout << GREEN << "[OK] Saved to " << outputPath << RESET << endl;
         }
     } else {
         // Clipboard failed
         if (savedToFile) {
-            cout << YELLOW << "⚠ Clipboard copy failed" << RESET << endl;
-            cout << GREEN << "✓ Saved to " << outputPath << " (Ctrl+A, Ctrl+C to copy)" << RESET << endl;
+            cout << YELLOW << "[WARN] Clipboard copy failed" << RESET << endl;
+            cout << GREEN << "[OK] Saved to " << outputPath << " (Ctrl+A, Ctrl+C to copy)" << RESET << endl;
         } else {
-            cout << YELLOW << "⚠ Could not copy to clipboard or save to file" << RESET << endl;
-            cout << GREEN << "✓ Ready to copy from above!" << RESET << endl;
+            cout << YELLOW << "[WARN] Could not copy to clipboard or save to file" << RESET << endl;
+            cout << GREEN << "[OK] Ready to copy from above!" << RESET << endl;
         }
     }
     
-    cout << BLUE << "═══════════════════════════════════════════════════════════════" << RESET << endl;
+    cout << BLUE << SEP << RESET << endl;
     
     return true;
 }

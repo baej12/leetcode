@@ -14,6 +14,14 @@
 
 using namespace std;
 
+#ifdef _WIN32
+#define POPEN _popen
+#define PCLOSE _pclose
+#else
+#define POPEN popen
+#define PCLOSE pclose
+#endif
+
 // ANSI color codes
 const string GREEN = "\033[32m";
 const string RED = "\033[31m";
@@ -70,7 +78,7 @@ string findProblemFile(const string& filename) {
 // Function to execute a command and capture output
 string executeCommand(const string& command) {
     string result = "";
-    FILE* pipe = popen(command.c_str(), "r");
+    FILE* pipe = POPEN(command.c_str(), "r");
     if (!pipe) {
         cerr << "Error: Could not execute command" << endl;
         return "";
@@ -81,7 +89,7 @@ string executeCommand(const string& command) {
         result += buffer;
     }
     
-    pclose(pipe);
+    PCLOSE(pipe);
     
     return result;
 }
@@ -233,7 +241,7 @@ vector<string> parseExampleTestCases(const string& filename) {
     ifstream file(filename);
     
     if (!file.is_open()) {
-        cerr << RED << "✗ Error: Could not open file " << filename << RESET << endl;
+        cerr << RED << "[ERR] Error: Could not open file " << filename << RESET << endl;
         return testCases;
     }
     
@@ -459,17 +467,17 @@ bool compileSolution(const string& sourceFile, const string& outputFile) {
 #endif
 
     if (!outputExists) {
-        cerr << RED << "✗ Compilation failed:" << RESET << endl;
+        cerr << RED << "[ERR] Compilation failed:" << RESET << endl;
         cerr << compileOutput << endl;
         return false;
     }
     
     if (!compileOutput.empty()) {
-        cout << YELLOW << "⚠ Compilation warnings:" << RESET << endl;
+        cout << YELLOW << "[WARN] Compilation warnings:" << RESET << endl;
         cout << compileOutput << endl;
     }
     
-    cout << GREEN << "✓ Compilation successful" << RESET << endl;
+    cout << GREEN << "[OK] Compilation successful" << RESET << endl;
     return true;
 }
 
@@ -523,7 +531,7 @@ int main(int argc, char* argv[]) {
     // Try to find the file in directory structure or root
     string actualFile = findProblemFile(sourceFile);
     if (actualFile.empty()) {
-        cerr << RED << "✗ Error: File '" << sourceFile << "' not found" << RESET << endl;
+        cerr << RED << "[ERR] Error: File '" << sourceFile << "' not found" << RESET << endl;
         return 1;
     }
     
@@ -549,7 +557,7 @@ int main(int argc, char* argv[]) {
     bool hasTreeNode = containsDataStructure(actualFile, "TreeNode");
     
     if (hasListNode || hasTreeNode) {
-        cout << BLUE << "ℹ This problem uses custom data structures (";
+        cout << BLUE << "[INFO] This problem uses custom data structures (";
         if (hasListNode) cout << "ListNode";
         if (hasListNode && hasTreeNode) cout << ", ";
         if (hasTreeNode) cout << "TreeNode";
@@ -563,7 +571,7 @@ int main(int argc, char* argv[]) {
     auto examples = parseExamplesFromDescription(actualFile);
     
     if (examples.empty()) {
-        cout << YELLOW << "⚠ No examples with expected outputs found in description" << RESET << endl;
+        cout << YELLOW << "[WARN] No examples with expected outputs found in description" << RESET << endl;
         cout << "Running with test cases only..." << endl;
         cout << endl;
         
@@ -600,10 +608,10 @@ int main(int argc, char* argv[]) {
             cout << "  Got:      " << output << endl;
             
             if (output == examples[i].second) {
-                cout << GREEN << "  ✓ PASSED" << RESET << endl;
+                cout << GREEN << "  [OK] PASSED" << RESET << endl;
                 passed++;
             } else {
-                cout << RED << "  ✗ FAILED" << RESET << endl;
+                cout << RED << "  [ERR] FAILED" << RESET << endl;
                 failed++;
             }
             cout << endl;
@@ -613,7 +621,7 @@ int main(int argc, char* argv[]) {
         cout << "========================================" << endl;
         cout << "Summary: ";
         if (failed == 0) {
-            cout << GREEN << "All " << passed << " test(s) passed! ✓" << RESET << endl;
+            cout << GREEN << "All " << passed << " test(s) passed! [OK]" << RESET << endl;
         } else {
             cout << passed << " passed, " << RED << failed << " failed" << RESET << endl;
         }
