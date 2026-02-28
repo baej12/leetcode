@@ -12,6 +12,17 @@
 *.so
 *.out
 *.dSYM
+*.obj
+*.a
+*.lib
+*.pdb
+*.ilk
+*.exp
+*.map
+a.out
+core
+*.core
+*.stackdump
 
 # Packages #
 ############
