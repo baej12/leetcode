@@ -2,11 +2,58 @@
 #include <fstream>
 #include <string>
 #include <cstdlib>
+#include <cstdio>
 #include <sstream>
 #include <regex>
 #include <sys/stat.h>
 
 using namespace std;
+
+// Forward declaration
+string executeCommand(const string& command);
+
+// Platform-specific helpers for shell commands
+string getNullDevice() {
+#ifdef _WIN32
+    return "NUL";
+#else
+    return "/dev/null";
+#endif
+}
+
+string shellQuote(const string& arg) {
+#ifdef _WIN32
+    return "\"" + arg + "\"";
+#else
+    return "'" + arg + "'";
+#endif
+}
+
+string executeCurlGet(const string& url) {
+    string cmd = "curl -s " + shellQuote(url) + " 2>" + getNullDevice();
+    return executeCommand(cmd);
+}
+
+string executeCurlPostJson(const string& url, const string& jsonPayload) {
+    // Use a temp file for payload to avoid shell-escaping issues (especially on Windows)
+    const string tempPayloadFile = "leetcode_graphql_payload.json";
+    {
+        ofstream temp(tempPayloadFile, ios::binary);
+        if (!temp.is_open()) {
+            return "";
+        }
+        temp << jsonPayload;
+    }
+
+    string cmd = "curl -s " + shellQuote(url) +
+                 " -H " + shellQuote("Content-Type: application/json") +
+                 " --data-binary @" + shellQuote(tempPayloadFile) +
+                 " 2>" + getNullDevice();
+
+    string response = executeCommand(cmd);
+    remove(tempPayloadFile.c_str());
+    return response;
+}
 
 // Function to execute shell command and capture output
 string executeCommand(const string& command) {
@@ -138,8 +185,7 @@ bool isNumber(const string& str) {
 
 // Function to fetch problem slug from problem ID
 string fetchProblemSlug(const string& problemId) {
-    string curlCmd = "curl -s 'https://leetcode.com/api/problems/all/' 2>/dev/null";
-    string response = executeCommand(curlCmd);
+    string response = executeCurlGet("https://leetcode.com/api/problems/all/");
     
     if (response.empty()) {
         return "";
@@ -337,14 +383,8 @@ bool fetchProblemInfo(const string& problemIdentifier, string& title, string& di
     
     // Use curl to fetch problem data from LeetCode GraphQL API
     // Include content, exampleTestcases, and codeSnippets in the query
-    string curlCmd = "curl -s 'https://leetcode.com/graphql' "
-                     "-H 'Content-Type: application/json' "
-                     "--data-raw '{\"query\":\"query questionContent($titleSlug: String!) "
-                     "{ question(titleSlug: $titleSlug) { questionId title titleSlug difficulty content exampleTestcases "
-                     "codeSnippets { lang langSlug code } }}\","
-                     "\"variables\":{\"titleSlug\":\"" + slug + "\"}}' 2>/dev/null";
-    
-    string response = executeCommand(curlCmd);
+    string payload = "{\"query\":\"query questionContent($titleSlug: String!) { question(titleSlug: $titleSlug) { questionId title titleSlug difficulty content exampleTestcases codeSnippets { lang langSlug code } }}\",\"variables\":{\"titleSlug\":\"" + slug + "\"}}";
+    string response = executeCurlPostJson("https://leetcode.com/graphql", payload);
     
     if (response.empty()) {
         return false;

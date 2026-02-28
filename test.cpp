@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 #include <cstdlib>
+#include <cstdio>
 #include <sys/stat.h>
 
 using namespace std;
@@ -80,10 +81,7 @@ string executeCommand(const string& command) {
         result += buffer;
     }
     
-    int exitCode = pclose(pipe);
-    if (exitCode != 0) {
-        return ""; // Command failed
-    }
+    pclose(pipe);
     
     return result;
 }
@@ -452,10 +450,15 @@ string createDataStructureWrapper(const string& sourceFile, bool hasListNode, bo
 bool compileSolution(const string& sourceFile, const string& outputFile) {
     cout << BLUE << "Compiling " << sourceFile << "..." << RESET << endl;
     
-    string compileCmd = "g++ -std=c++17 -O2 -o " + outputFile + " " + sourceFile + " 2>&1";
+    string compileCmd = "g++ -std=c++17 -O2 -o \"" + outputFile + "\" \"" + sourceFile + "\" 2>&1";
     string compileOutput = executeCommand(compileCmd);
-    
-    if (!fileExists(outputFile)) {
+
+    bool outputExists = fileExists(outputFile);
+#ifdef _WIN32
+    outputExists = outputExists || fileExists(outputFile + ".exe");
+#endif
+
+    if (!outputExists) {
         cerr << RED << "✗ Compilation failed:" << RESET << endl;
         cerr << compileOutput << endl;
         return false;
@@ -472,13 +475,21 @@ bool compileSolution(const string& sourceFile, const string& outputFile) {
 
 // Function to run tests with input
 string runTestWithInput(const string& executable, const vector<string>& inputs) {
-    string inputStr = "";
-    for (const auto& input : inputs) {
-        inputStr += input + "\n";
+    const string inputFile = "test_input_tmp.txt";
+    {
+        ofstream out(inputFile, ios::binary);
+        if (!out.is_open()) {
+            return "";
+        }
+        for (const auto& input : inputs) {
+            out << input << "\n";
+        }
     }
-    
-    string command = "echo '" + inputStr + "' | ./" + executable + " 2>&1";
-    return executeCommand(command);
+
+    string command = executable + " < " + inputFile + " 2>&1";
+    string output = executeCommand(command);
+    remove(inputFile.c_str());
+    return output;
 }
 
 // Function to trim whitespace
@@ -523,6 +534,13 @@ int main(int argc, char* argv[]) {
     if (!compileSolution(actualFile, executableName)) {
         return 1;
     }
+
+    string executablePath = executableName;
+#ifdef _WIN32
+    if (fileExists(executableName + ".exe")) {
+        executablePath = executableName + ".exe";
+    }
+#endif
     
     cout << endl;
     
@@ -553,7 +571,7 @@ int main(int argc, char* argv[]) {
         vector<string> testCases = parseExampleTestCases(actualFile);
         if (!testCases.empty()) {
             cout << BLUE << "Found " << testCases.size() << " test input line(s)" << RESET << endl;
-            string output = runTestWithInput(executableName, testCases);
+            string output = runTestWithInput(executablePath, testCases);
             cout << "Output:" << endl;
             cout << output << endl;
         } else {
@@ -576,7 +594,7 @@ int main(int argc, char* argv[]) {
             cout << endl;
             cout << "  Expected: " << examples[i].second << endl;
             
-            string output = runTestWithInput(executableName, examples[i].first);
+            string output = runTestWithInput(executablePath, examples[i].first);
             output = trim(output);
             
             cout << "  Got:      " << output << endl;
@@ -602,8 +620,10 @@ int main(int argc, char* argv[]) {
     }
     
     // Cleanup
-    string cleanupCmd = "rm -f " + executableName;
-    system(cleanupCmd.c_str());
+    remove(executableName.c_str());
+#ifdef _WIN32
+    remove((executableName + ".exe").c_str());
+#endif
     
     return 0;
 }
